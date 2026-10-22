@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Achadinhos da Shopee - As melhores ofertas</title>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8190600021817615" crossorigin="anonymous"></script>
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; font-family: sans-serif; margin: 0; padding: 0; }
+        .banner-top { width: 100%; display: block; background: #ee4d2d; text-decoration: none; }
+        .banner-top img { width: 100%; height: auto; display: block; }
+        .banner-fallback { background: linear-gradient(90deg, #ff416c 0%, #ff4b2b 100%); padding: 15px; color: white; text-align: center; }
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 15px; }
+        h1 { color: #fff; font-size: 20px; text-align: center; margin: 20px 0 10px 0; }
+        
+        .ad-container { width: 100%; min-height: 100px; display: flex; justify-content: center; align-items: center; margin: 20px 0; background: #161b22; border: 1px dashed #30363d; border-radius: 8px; overflow: hidden; }
+
+        .produtos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
+        .produto-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; overflow: hidden; padding: 10px; text-align: center; }
+        .produto-card img { max-width: 100%; border-radius: 4px; }
+        .produto-card h2 { font-size: 14px; color: #fff; margin: 10px 0; height: 40px; overflow: hidden; }
+        .produto-card .preco { color: #ff6b00; font-weight: bold; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+    <!-- Banner no Topo -->
+    <a href="https://s.shopee.com.br/SEU_LINK_DE_AFILIADO_AQUI" class="banner-top" target="_blank">
+        <img src="https://i.imgur.com/SEU_BANNER_AQUI.jpg" alt="Achadinho da Shopee" 
+             onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'banner-fallback\'><h2 style=\'margin:0;\'>🛍️ Achadinho da Shopee</h2><p style=\'margin:5px 0 0 0;\'>As melhores ofertas e tendências!</p></div>';">
+    </a>
+
+    <div class="container">
+        <h1>🔥 Ofertas em Destaque</h1>
+        
+        <!-- ANÚNCIO TOPO (Acima do grid de produtos) -->
+        <div class="ad-container" style="min-height: 250px;">
+            
+            
+        </div>
+
+        
+<div style="width:100%; min-height:120px; display:flex; justify-content:center; margin:20px 0;">
+    
+    
+</div>
+
+
+
+
+
+<!-- ANÚNCIO PROFITABLERATE -->
+<div class="ad-container" style="width:100%; min-height:120px; display:flex; flex-direction:column; justify-content:center; align-items:center; margin:15px 0; background:#f1f1f1; border:1px dashed #ccc; border-radius:8px; overflow:hidden;">
+    <script async="async" data-cfasync="false" src="https://pl31922696.profitableratecpmnetwork.com/517a7eb4b01099f580acfea85278bda3/invoke.js"></script>
+    <div id="container-517a7eb4b01099f580acfea85278bda3" style="width:100%;"></div>
+</div>
+
+<div class="produtos-grid" id="catalogo">
+            <p style="text-align: center; width: 100%; grid-column: 1 / -1;">Carregando ofertas...</p>
+        </div>
+        
+        <!-- ANÚNCIO RODAPÉ -->
+        <div class="ad-container" style="min-height: 250px; margin-top: 30px;">
+            <script type="text/javascript">
+                atOptions = { 'key' : 'cd33c28fa30e9169704719566273bd0a', 'format' : 'iframe', 'height' : 90, 'width' : 728, 'params' : {} };
+            </script>
+            
+        </div>
+    </div>
+
+    <script>
+        async function carregarProdutos() {
+            try {
+                const response = await fetch('/api/catalogo');
+                const data = await response.json();
+                const catalogo = document.getElementById('catalogo');
+                catalogo.innerHTML = '';
+                data.forEach(produto => {
+                    const card = document.createElement('div');
+                    card.className = 'produto-card';
+                    card.innerHTML = `
+                        <a href="/produto.html?id=${produto.id}" style="text-decoration: none; color: inherit;">
+                            <img src="${produto.imagem}" loading="lazy">
+                            <h2>${produto.titulo}</h2>
+                            <div class="preco">R$ ${produto.preco.toFixed(2).replace('.', ',')}</div>
+                        </a>
+                    `;
+                    catalogo.appendChild(card);
+                });
+            } catch (err) {
+                document.getElementById('catalogo').innerHTML = '<p>Erro ao carregar ofertas.</p>';
+            }
+        }
+        window.addEventListener('DOMContentLoaded', carregarProdutos);
+    </script>
+
+<!-- ANÚNCIO HIGHREVENUE -->
+<div class="ad-container" style="width:100%; min-height:90px; display:flex; flex-direction:column; justify-content:center; align-items:center; margin:15px 0; background:#f1f1f1; border:1px dashed #ccc; border-radius:8px; overflow:hidden;">
+    <script data-cfasync="false" type="text/javascript">
+        atOptions = { 'key' : 'cd33c28fa30e9169704719566273bd0a', 'format' : 'iframe', 'height' : 90, 'width' : 728, 'params' : {} };
+    </script>
+    
+</div>
+
+
+<!-- ANÚNCIO HIGHREVENUE -->
+<div class="ad-container" style="width:100%; min-height:90px; display:flex; flex-direction:column; justify-content:center; align-items:center; margin:15px 0; background:#f1f1f1; border:1px dashed #ccc; border-radius:8px; overflow:hidden;">
+    <script data-cfasync="false" type="text/javascript">
+        atOptions = { 'key' : 'cd33c28fa30e9169704719566273bd0a', 'format' : 'iframe', 'height' : 90, 'width' : 728, 'params' : {} };
+    </script>
+    <script data-cfasync="false" type="text/javascript" src="https://www.highrevenueformat.com/cd33c28fa30e9169704719566273bd0a/invoke.js"></script>
+</div>
+
+</body>
+</html>

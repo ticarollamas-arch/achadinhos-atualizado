@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoria de Tráfego - Visitas Reais vs Bots</title>
+    <!-- Chart.js para Gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse para ler CSVs de forma robusta -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <style>
+        :root { --bg-color: #0d1117; --panel-bg: #161b22; --border-color: #30363d; --text-main: #c9d1d9; --text-muted: #8b949e; --accent: #ff6b00; --success: #238636; --warning: #d29922; --danger: #da3633; --info: #3b82f6; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 20px; }
+        header { display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; margin-bottom: 20px; }
+        header h1 { font-size: 24px; color: #fff; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        header .domain { font-size: 13px; color: var(--text-muted); word-break: break-all; }
+        @media (min-width: 600px) { header { flex-direction: row; justify-content: space-between; align-items: center; } }
+        .badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+
+        /* ÁREA DE UPLOAD */
+        .upload-box { width: 100%; border: 2px dashed var(--border-color); border-radius: 10px; padding: 30px 20px; text-align: center; cursor: pointer; transition: 0.2s; background: var(--panel-bg); margin-bottom: 20px; position: relative; }
+        .upload-box:hover, .upload-box.dragover { border-color: var(--accent); background: rgba(255, 107, 0, 0.06); }
+        .upload-box input[type="file"] { display: none; }
+        .upload-text { font-size: 15px; color: var(--text-muted); pointer-events: none; }
+        .upload-text span { color: var(--accent); font-weight: bold; font-size: 16px; }
+        .status-file { margin-top: 15px; font-size: 14px; color: var(--success); display: none; font-weight: bold; }
+        .btn-clear { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-top: 12px; position: relative; z-index: 5; }
+        .btn-clear:hover { color: var(--danger); border-color: var(--danger); }
+
+        .metrics-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 25px; }
+        @media (min-width: 600px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (min-width: 900px) { .metrics-grid { grid-template-columns: repeat(4, 1fr); } }
+        .metric-card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; }
+        .metric-card h3 { font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 10px; }
+        .metric-card .value { font-size: 28px; font-weight: bold; color: #fff; }
+        .metric-card .value.success { color: var(--success); }
+        .metric-card .value.danger { color: var(--danger); }
+        .metric-card .value.warning { color: var(--warning); }
+        .metric-card .value.info { color: var(--info); }
+        .metric-card .sub { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
+
+        .charts-grid { display: flex; flex-direction: column; gap: 20px; margin-bottom: 25px; }
+        @media (min-width: 900px) { .charts-grid { flex-direction: row; } .chart-container { flex: 1; } }
+        .chart-container { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; position: relative; height: 350px; }
+
+        .table-container { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+        .table-header { padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .table-header h2 { font-size: 16px; color: #fff; }
+        .table-header input { background: var(--bg-color); border: 1px solid var(--border-color); color: #fff; padding: 8px 12px; border-radius: 6px; outline: none; width: 100%; max-width: 300px; }
+        .table-wrapper { overflow-x: auto; max-height: 500px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 12px 15px; border-bottom: 1px solid var(--border-color); font-size: 13px; }
+        th { background: #1c2128; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 11px; position: sticky; top: 0; z-index: 2; }
+        tr:hover { background: rgba(255,255,255,0.02); }
+        
+        .tag { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; white-space: nowrap; }
+        .tag.real { background: rgba(35, 134, 54, 0.2); color: #3fb950; border: 1px solid #238636; }
+        .tag.bot-google { background: rgba(66, 133, 244, 0.2); color: #8ab4f8; border: 1px solid #4285f4; }
+        .tag.bot-ia { background: rgba(210, 153, 34, 0.2); color: #d29922; border: 1px solid #d29922; }
+        .tag.bot-malicioso { background: rgba(218, 54, 51, 0.2); color: #f85149; border: 1px solid #da3633; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🕵️ Auditoria de Tráfego <span class="badge">Upload Dinâmico</span></h1>
+        <div class="domain">osachadinhosdashopee.com.br</div>
+    </header>
+
+    <!-- ÁREA DE UPLOAD DE CSV (Sem conflito de duplo clique + Drag and Drop) -->
+    <section class="upload-box" id="drop-zone" onclick="document.getElementById('csv-files').click()">
+        <div class="upload-text">
+            📁 <span>Selecionar ou Arrastar CSVs do Cloudflare</span><br>
+            Suba arquivos de IPs, Navegadores ou User-Agents para atualizar os gráficos.
+        </div>
+        <input type="file" id="csv-files" accept=".csv" multiple onchange="handleFileUpload(this.files)">
+        <div class="status-file" id="status-file">✅ Nenhum arquivo carregado</div>
+        <button class="btn-clear" onclick="clearData(event)">Limpar Dados e Resetar</button>
+    </section>
+
+    <section class="metrics-grid">
+        <div class="metric-card">
+            <h3>Requisições Totais</h3>
+            <div class="value" id="metric-total">0</div>
+            <div class="sub">Analisadas nos arquivos</div>
+        </div>
+        <div class="metric-card">
+            <h3>Acessos Humanos / ISPs</h3>
+            <div class="value success" id="metric-human">0</div>
+            <div class="sub">Navegadores e IPs Residenciais</div>
+        </div>
+        <div class="metric-card">
+            <h3>Acessos de Bots</h3>
+            <div class="value danger" id="metric-bots">0</div>
+            <div class="sub">Scanners, Datacenters, Curl, IA</div>
+        </div>
+        <div class="metric-card">
+            <h3>Buscadores (SEO)</h3>
+            <div class="value info" id="metric-google">0</div>
+            <div class="sub">GoogleBot, BingBot (Indexação)</div>
+        </div>
+    </section>
+
+    <section class="charts-grid">
+        <div class="chart-container"><canvas id="trafficChart"></canvas></div>
+        <div class="chart-container"><canvas id="ipChart"></canvas></div>
+    </section>
+
+    <section class="table-container">
+        <div class="table-header">
+            <h2>Origem / Agente e Classificação</h2>
+            <input type="text" id="search-log" placeholder="🔍 Buscar IP, Navegador ou Bot..." oninput="renderLogs()">
+        </div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>IP / User-Agent / Origem</th>
+                        <th>Acessos</th>
+                        <th>Classificação</th>
+                        <th>Diagnóstico</th>
+                    </tr>
+                </thead>
+                <tbody id="log-table-body">
+                    <tr><td colspan="4" style="text-align:center; color: var(--text-muted); padding: 30px;">Aguardando o upload dos arquivos CSV...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <script>
+        let rawLogsParsed = [];
+        let trafficChartInstance = null;
+        let ipChartInstance = null;
+
+        // Configuração de Drag & Drop
+        const dropZone = document.getElementById('drop-zone');
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                handleFileUpload(e.dataTransfer.files);
+            }
+        });
+
+        // Sanitização básica para evitar quebra de HTML
+        function escapeHTML(str) {
+            return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        }
+
+        // Função para processar os arquivos CSV
+        function handleFileUpload(files) {
+            if (!files || files.length === 0) return;
+
+            let filesProcessed = 0;
+            let validFiles = 0;
+            let totalFiles = files.length;
+            let combinedData = [];
+
+            for (let i = 0; i < totalFiles; i++) {
+                const file = files[i];
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    dynamicTyping: true,
+                    complete: function(results) {
+                        if (results.data && results.data.length > 0) {
+                            validFiles++;
+                            combinedData = combinedData.concat(results.data);
+                        }
+                        filesProcessed++;
+                        if (filesProcessed === totalFiles) {
+                            const statusEl = document.getElementById('status-file');
+                            statusEl.style.display = 'block';
+                            statusEl.innerText = `✅ ${validFiles} arquivo(s) carregado(s) com sucesso!`;
+                            processData(combinedData);
+                        }
+                    }
+                });
+            }
+        }
+
+        // Extrai Nome e Valor independente de como o Cloudflare nomeou a coluna no CSV
+        function extractRowFields(row) {
+            const keys = Object.keys(row);
+            if (keys.length === 0) return null;
+
+            // Tenta achar colunas padrão do Cloudflare ou pega a 1ª coluna como Nome e a 2ª como Valor
+            const nameKey = keys.find(k => /name|ip|agent|browser|item|client|key|dimension/i.test(k)) || keys[0];
+            const valKey = keys.find(k => /value|count|requests|total|visits|metric/i.test(k)) || keys[1];
+
+            const rawName = row[nameKey] !== undefined && row[nameKey] !== null ? String(row[nameKey]).trim() : '';
+            let rawVal = row[valKey];
+
+            if (typeof rawVal === 'string') {
+                rawVal = Number(rawVal.replace(/\./g, '').replace(/,/g, ''));
+            }
+            const count = Number(rawVal) || 0;
+
+            if (!rawName || isNaN(count) || count <= 0) return null;
+            return { item: rawName, count: count };
+        }
+
+        // Função que classifica os dados e atualiza os gráficos
+        function processData(data) {
+            let totalReqs = 0, humanReqs = 0, botReqs = 0, googleReqs = 0;
+            rawLogsParsed = [];
+
+            data.forEach(row => {
+                const extracted = extractRowFields(row);
+                if (!extracted) return;
+
+                const classification = classifyTraffic(extracted.item, extracted.count);
+
+                totalReqs += extracted.count;
+                if (classification.type === 'real') humanReqs += extracted.count;
+                else if (classification.type === 'bot-google') googleReqs += extracted.count;
+                else botReqs += extracted.count;
+
+                rawLogsParsed.push({
+                    ip: extracted.item,
+                    count: extracted.count,
+                    classification: classification
+                });
+            });
+
+            // Ordena do maior número de acessos para o menor
+            rawLogsParsed.sort((a, b) => b.count - a.count);
+
+            // Atualiza os cards
+            document.getElementById('metric-total').innerText = totalReqs.toLocaleString('pt-BR');
+            document.getElementById('metric-human').innerText = humanReqs.toLocaleString('pt-BR');
+            document.getElementById('metric-bots').innerText = botReqs.toLocaleString('pt-BR');
+            document.getElementById('metric-google').innerText = googleReqs.toLocaleString('pt-BR');
+
+            updateCharts(humanReqs, googleReqs, botReqs, rawLogsParsed);
+            renderLogs();
+        }
+
+        // Lógica de classificação anti-bot (Suporta tanto IPs quanto User-Agents)
+        function classifyTraffic(item, count) {
+            const val = item.toLowerCase();
+
+            // 1. Buscadores Oficiais (SEO)
+            if (val.includes('googlebot') || val.includes('adsbot-google') || val.includes('mediapartners') ||
+                val.includes('bingbot') || val.startsWith('66.249.') || val.startsWith('2001:4860:4801')) {
+                return { type: 'bot-google', label: '✅ Buscador SEO', reason: 'Indexação Google / Bing (Permitido)' };
+            }
+
+            // 2. Crawlers de IA e redes sociais
+            if (val.includes('gptbot') || val.includes('openai') || val.includes('claudebot') ||
+                val.includes('bytespider') || val.includes('CCBot') || val.includes('facebookexternalhit')) {
+                return { type: 'bot-ia', label: '🤖 Bot IA / Social', reason: 'Crawler de IA ou Preview de Link' };
+            }
+
+            // 3. Ferramentas de ataque, CLI e Scanners
+            if (val.includes('curl') || val.includes('python') || val.includes('wget') || val.includes('Go-http-client') ||
+                val.includes('scanner') || val.includes('nmap') || val.includes('nikto') || val.includes('sqlmap') ||
+                val.includes('zgrab') || val.includes('masscan') || val.includes('headless') || val.includes('scrapy') ||
+                val.includes('ahrefsbot') || val.includes('semrushbot') || val.includes('mj12bot')) {
+                return { type: 'bot-malicioso', label: '🚨 Scanner / Bot', reason: 'Automação, Scraping ou Scanner' };
+            }
+
+            // 4. IPs de Scanners/Datacenters conhecidos (Zscaler, AWS, DigitalOcean, etc.)
+            if (val.startsWith('74.7.') || val.startsWith('185.220.') || val.startsWith('45.155.') ||
+                val.startsWith('198.235.') || val.startsWith('205.210.')) {
+                return { type: 'bot-malicioso', label: '🚨 IP Datacenter/Proxy', reason: 'Tráfego automatizado de nuvem/scanner' };
+            }
+
+            // 5. Navegadores Reais (quando o CSV for de User-Agents ou Browsers)
+            if (val.includes('chrome') || val.includes('firefox') || val.includes('safari') ||
+                val.includes('edge') || val.includes('opera') || val.includes('android') ||
+                val.includes('iphone') || val.includes('mozilla') || val.includes('samsung')) {
+                if (!val.includes('bot') && !val.includes('spider') && !val.includes('crawl')) {
+                    return { type: 'real', label: '👤 HUMANO', reason: 'Navegador de usuário real' };
+                }
+            }
+
+            // 6. Se for um endereço IPv4 ou IPv6 puro (quando o CSV for de IPs)
+            const isIPv4 = /^(\d{1,3}\.){3}\d{1,3}$/.test(val);
+            const isIPv6 = val.includes(':') && /^[0-9a-f:]+$/i.test(val);
+
+            if (isIPv4 || isIPv6) {
+                // Se um único IP fez mais de 800 requisições sozinho, é suspeito de automação
+                if (count > 800) {
+                    return { type: 'bot-malicioso', label: '🚨 Alta Frequência', reason: 'Volume anormal para um único IP' };
+                }
+                if (val.startsWith('2804:') || val.startsWith('177.') || val.startsWith('179.') ||
+                    val.startsWith('187.') || val.startsWith('189.') || val.startsWith('191.') || val.startsWith('200.') || val.startsWith('201.')) {
+                    return { type: 'real', label: '👤 HUMANO (ISP BR)', reason: 'Provedor residencial/móvel brasileiro' };
+                }
+                return { type: 'real', label: '👤 Visitante IP', reason: 'Acesso padrão por endereço IP' };
+            }
+
+            // 7. Caso não se encaixe em nada acima
+            return { type: 'bot-malicioso', label: '❓ Desconhecido / Bot', reason: 'Agente não identificado ou script' };
+        }
+
+        // Atualiza os gráficos com os dados processados
+        function updateCharts(human, google, bots, logs) {
+            if (trafficChartInstance) trafficChartInstance.destroy();
+            trafficChartInstance = new Chart(document.getElementById('trafficChart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Humanos / ISPs', 'Buscadores (SEO)', 'Bots / Scanners'],
+                    datasets: [{ data: [human, google, bots], backgroundColor: ['#238636', '#3b82f6', '#da3633'], borderWidth: 0 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#c9d1d9' } }, title: { display: true, text: 'Divisão de Tráfego', color: '#fff' } } }
+            });
+
+            const topIPs = logs.slice(0, 5);
+            if (ipChartInstance) ipChartInstance.destroy();
+            ipChartInstance = new Chart(document.getElementById('ipChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: topIPs.map(i => i.ip.length > 20 ? i.ip.substring(0, 20) + '...' : i.ip),
+                    datasets: [{
+                        label: 'Requisições',
+                        data: topIPs.map(i => i.count),
+                        backgroundColor: topIPs.map(i => i.classification.type === 'real' ? '#238636' : i.classification.type === 'bot-google' ? '#3b82f6' : i.classification.type === 'bot-ia' ? '#d29922' : '#da3633')
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false }, title: { display: true, text: 'Top 5 Origens / Agentes', color: '#fff' } }, scales: { x: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } }, y: { ticks: { color: '#c9d1d9' }, grid: { display: false } } } }
+            });
+        }
+
+        // Renderiza a tabela de logs
+        function renderLogs() {
+            const searchTerm = (document.getElementById('search-log').value || '').toLowerCase();
+            const tbody = document.getElementById('log-table-body');
+            tbody.innerHTML = '';
+
+            const filtered = rawLogsParsed.filter(l =>
+                l.ip.toLowerCase().includes(searchTerm) ||
+                l.classification.label.toLowerCase().includes(searchTerm) ||
+                l.classification.reason.toLowerCase().includes(searchTerm)
+            );
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--text-muted); padding: 30px;">Nenhum dado encontrado para este filtro.</td></tr>';
+                return;
+            }
+
+            filtered.forEach(log => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-family: monospace; color: #8b949e; word-break: break-all;">${escapeHTML(log.ip)}</td>
+                    <td style="font-weight: bold;">${log.count.toLocaleString('pt-BR')}</td>
+                    <td><span class="tag ${log.classification.type}">${log.classification.label}</span></td>
+                    <td style="font-size: 12px; color: var(--text-muted);">${log.classification.reason}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Limpa os dados e reseta os gráficos
+        function clearData(event) {
+            event.stopPropagation();
+            rawLogsParsed = [];
+            document.getElementById('status-file').style.display = 'none';
+            document.getElementById('csv-files').value = '';
+            document.getElementById('metric-total').innerText = '0';
+            document.getElementById('metric-human').innerText = '0';
+            document.getElementById('metric-bots').innerText = '0';
+            document.getElementById('metric-google').innerText = '0';
+            
+            if (trafficChartInstance) trafficChartInstance.destroy();
+            if (ipChartInstance) ipChartInstance.destroy();
+            
+            document.getElementById('log-table-body').innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--text-muted); padding: 30px;">Aguardando o upload dos arquivos CSV...</td></tr>';
+        }
+    </script>
+</body>
+</html>
